@@ -1,0 +1,24 @@
+{
+  "name": "skillswitch",
+  "version": "1.7.0",
+  "private": true,
+  "description": "Manage skills, plugins and MCP servers across AI coding agents — with backups and one-click rollback",
+  "license": "Apache-2.0",
+  "keywords": ["ai-agent", "skills", "mcp", "codex", "dsh", "claude-code", "windows"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/USERNAME/skillswitch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/USERNAME/skillswitch/issues"
+  },
+  "scripts": {
+    "dev": "node src/server.js",
+    "build": "node build/build.mjs"
+  },
+  "devDependencies": {
+    "pe-library": "^2.0.1",
+    "postject": "^1.0.0-alpha.6",
+    "resedit": "^3.1.0"
+  }
+}

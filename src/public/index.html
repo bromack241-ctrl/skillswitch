@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技能开关 Skill Switch</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' shape-rendering='geometricPrecision'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b8cff'/%3E%3Cstop offset='1' stop-color='%238b5bff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Cpath d='M18.8 2.9 L7.9 18.5 h6.5 l-1.5 10.6 L24.3 13.1 h-6.6 z' fill='%23ffffff'/%3E%3C/svg%3E">
+<style>
+  :root { --bg: #0b0e14; --panel: #141822; --panel2: #1b2130; --border: #2a3040; --text: #e7eaf2; --muted: #8b93a7; --accent: #5b8cff; --accent2: #8b5bff; --on: #35d492; --off: #5f6878; --warn: #f0b429; --err: #f2555a; --glass: rgba(20,24,34,.72); }
+  @property --starangle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; }
+  header.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 12px 22px; background: rgba(15,17,23,.85); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .logo { width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,.55)) drop-shadow(0 0 10px rgba(91,140,255,.25)); }
+  header.top h1 { font-size: 18px; margin: 0; flex: 1; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .btn { cursor: pointer; border: 1px solid var(--border); background: var(--panel2); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); border: none; color: #fff; }
+  main { max-width: 980px; margin: 0 auto; padding: 22px 22px 120px; }
+  .summary { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; min-width: 130px; }
+  .stat .num { font-size: 22px; font-weight: 700; }
+  .stat .num.on { color: var(--on); }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  section.agent { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 18px; overflow: hidden; }
+  section.agent > header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  section.agent > header h2 { font-size: 15px; margin: 0; }
+  .badge { font-size: 12px; color: var(--muted); background: var(--panel2); border-radius: 20px; padding: 2px 10px; }
+  .dir { padding: 14px 18px; }
+  .dir + .dir { border-top: 1px dashed var(--border); }
+  .dir-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .dir-head code { font-size: 12px; color: var(--muted); background: var(--panel2); padding: 3px 8px; border-radius: 6px; word-break: break-all; }
+  .warn { font-size: 12px; color: var(--warn); }
+  .empty { font-size: 13px; color: var(--muted); padding: 6px 0; }
+  .skills { display: flex; flex-direction: column; gap: 8px; }
+  .skill { display: flex; align-items: flex-start; gap: 14px; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .skill.broken { opacity: .75; }
+  .meta { flex: 1; min-width: 0; }
+  .meta .name { font-size: 14px; font-weight: 600; }
+  .meta .folder { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .meta .desc { font-size: 12.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+  .meta .err { font-size: 12px; color: var(--err); margin-top: 5px; }
+  .state { font-size: 12px; padding: 2px 10px; border-radius: 20px; white-space: nowrap; margin-top: 2px; }
+  .state.on { background: rgba(52,199,123,.15); color: var(--on); }
+  .state.off { background: rgba(107,114,128,.15); color: var(--off); }
+  .state.unknown { background: rgba(240,180,41,.15); color: var(--warn); }
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex: 0 0 auto; margin-top: 2px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: var(--off); border-radius: 24px; transition: .2s; }
+  .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .slider { background: var(--on); }
+  .switch input:checked + .slider:before { transform: translateX(20px); }
+  .switch input:disabled + .slider { cursor: not-allowed; opacity: .4; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #222; border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; font-size: 13px; z-index: 100; max-width: 80vw; box-shadow: 0 8px 30px rgba(0,0,0,.4); display: none; }
+  #toast.ok { border-color: var(--on); }
+  #toast.err { border-color: var(--err); }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal[hidden] { display: none; }
+  .modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; width: 680px; max-width: 100%; max-height: 86vh; overflow: auto; padding: 20px; }
+  .modal-card h2 { margin: 0 0 6px; font-size: 16px; }
+  .modal-card h3 { margin: 16px 0 8px; font-size: 14px; color: var(--text); }
+  .hint { font-size: 12px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+  .agent-edit { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: var(--panel2); }
+  .agent-edit .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .agent-edit input[type=text], .project-row input[type=text] { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 7px; font-size: 13px; }
+  .dir-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .project-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .mini-btn { cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); border-radius: 7px; padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+  .mini-btn:hover { color: var(--text); border-color: var(--accent); }
+  .mini-btn.danger:hover { color: var(--err); border-color: var(--err); }
+  .mini-btn.on { color: var(--on); }
+  .mini-btn.off { color: var(--off); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .flex1 { flex: 1; }
+  /* GitHub 推荐面板 */
+  #ghPanel { position: fixed; left: 14px; bottom: 14px; z-index: 40; width: 330px; max-width: calc(100vw - 28px); background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.5); overflow: hidden; max-height: 72vh; display: flex; flex-direction: column; }
+  #ghPanel .gh-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  #ghPanel .gh-head .title { font-size: 13px; font-weight: 600; flex: 1; }
+  #ghPanel .tabs { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  #ghPanel .tab { flex: 1; text-align: center; padding: 6px; border-radius: 8px; cursor: pointer; font-size: 12px; color: var(--muted); }
+  #ghPanel .tab.active { background: var(--panel2); color: var(--text); }
+  #ghPanel .gh-body { overflow: auto; padding: 10px; flex: 1; min-height: 120px; }
+  .gh-item { padding: 8px 10px; border-radius: 9px; background: var(--panel2); margin-bottom: 8px; }
+  .gh-item .top { display: flex; align-items: center; gap: 8px; }
+  .gh-item .rank { width: 20px; height: 20px; border-radius: 50%; background: var(--bg); color: var(--muted); font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .gh-item .name { font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gh-item .name:hover { text-decoration: underline; }
+  .gh-item .stars { font-size: 12px; color: var(--warn); white-space: nowrap; }
+  .gh-item .desc { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  .must-badge { font-size: 10px; background: rgba(240,180,41,.18); color: var(--warn); padding: 1px 7px; border-radius: 20px; flex: 0 0 auto; }
+  .gh-item .actions { margin-top: 6px; display: flex; gap: 6px; }
+  .gh-empty { font-size: 12px; color: var(--muted); padding: 10px 4px; }
+  #ghPanel.collapsed .gh-body, #ghPanel.collapsed .tabs { display: none; }
+  #ghPanel.wide { width: 560px; max-height: 88vh; }
+  #ghPanel.wide .gh-body { max-height: calc(88vh - 160px); }
+  .gh-repo { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+  .gh-link { color: var(--accent); text-decoration: none; }
+  .gh-link:hover { text-decoration: underline; }
+  @media (max-width: 720px) { #ghPanel { width: 260px; } }
+  /* 技能悬浮提示 */
+  #tip { position: fixed; z-index: 200; display: none; pointer-events: none; max-width: 340px; background: #10131b; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.55; box-shadow: 0 8px 30px rgba(0,0,0,.55); color: var(--text); }
+  #tip .t-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  #tip .t-desc { color: var(--muted); word-break: break-word; }
+#ghPanel .gh-search { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  #ghPanel .gh-search input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 9px; border-radius: 7px; font-size: 12px; }
+  .gh-search-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .deploy-sel { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 7px; font-size: 12px; }
+  .btn.danger { border-color: #4a2430; color: #f08; }
+  .gh-install-row { display: flex; gap: 6px; margin: 6px 0 4px; }
+  .gh-install-row .deploy-sel { flex: 1; }
+  .gh-install-row .gh-install { flex: 0 0 auto; }
+  .gh-installed { font-size: 11px; color: #f0b429; margin-top: 4px; }
+  .gh-search-result-head { font-size: 11.5px; color: #8b91a7; padding: 2px 4px 8px; line-height: 1.5; }
+  .preview-list { max-height: 46vh; overflow: auto; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+  .preview-item { display: flex; gap: 10px; align-items: baseline; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+  .preview-item .pname { font-weight: 600; }
+  .preview-item .pdir { color: var(--muted); font-size: 12px; word-break: break-all; }
+  .sec-title { font-size: 15px; margin: 26px 0 10px; color: var(--text); opacity: .9; }
+  /* ================= vue-bits 风格视觉层 ================= */
+  html { color-scheme: dark; }
+  body {
+    background:
+      radial-gradient(1000px 620px at 12% -12%, rgba(66,92,190,.35), transparent 60%),
+      radial-gradient(900px 560px at 100% -6%, rgba(124,91,255,.28), transparent 58%),
+      var(--bg);
+  }
+  .aurora { position: fixed; inset: -18vh -12vw; z-index: 0; pointer-events: none; filter: blur(64px) saturate(150%); opacity: .5; }
+  .aurora i { position: absolute; display: block; border-radius: 50%; mix-blend-mode: screen; animation: auroraDrift 24s ease-in-out infinite alternate; }
+  .aurora i:nth-child(1) { width: 46vw; height: 46vw; left: 0%; top: -8%; background: radial-gradient(circle at 34% 32%, #4f7cff, transparent 62%); }
+  .aurora i:nth-child(2) { width: 42vw; height: 42vw; right: -6%; top: 4%; background: radial-gradient(circle at 62% 42%, #a05bff, transparent 60%); animation-duration: 31s; animation-delay: -7s; }
+  .aurora i:nth-child(3) { width: 38vw; height: 38vw; left: 34%; bottom: -14%; background: radial-gradient(circle at 50% 50%, #22d3a6, transparent 64%); animation-duration: 37s; animation-delay: -14s; opacity: .6; }
+  @keyframes auroraDrift { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(4vw,-3vh,0) scale(1.14); } }
+
+  .noise {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .05;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* 只提升正文层级；header 保持 sticky、#ghPanel/.modal/#toast 保持 fixed */
+  main { position: relative; z-index: 2; }
+  header.top {
+    background: rgba(11,14,20,.72);
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    box-shadow: 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+  header.top h1 {
+    background: linear-gradient(100deg, #c9d8ff 0%, #ffffff 16%, #8fa8ff 30%, #ffffff 44%, #c9d8ff 58%, #ffffff 72%, #c9d8ff 100%);
+    background-size: 260% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shinyText 7s linear infinite;
+    letter-spacing: .3px;
+  }
+  @keyframes shinyText { from { background-position: 200% 0; } to { background-position: -60% 0; } }
+
+  .btn { transition: border-color .18s, background .18s, transform .12s, box-shadow .2s; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px -8px rgba(91,140,255,.6); }
+  .btn:active { transform: translateY(0); }
+  .btn.primary {
+    position: relative; overflow: hidden; isolation: isolate;
+    background: linear-gradient(92deg, var(--accent), var(--accent2));
+    box-shadow: 0 8px 24px -12px rgba(91,140,255,.9);
+  }
+  .btn.primary::after {
+    content: ""; position: absolute; inset: -60%;
+    background: conic-gradient(from var(--starangle), transparent 0 62%, rgba(255,255,255,.85) 74%, transparent 86% 100%);
+    animation: starSpin 4.5s linear infinite; z-index: -1; opacity: .55;
+  }
+  @keyframes starSpin { to { --starangle: 360deg; } }
+
+  .stat, section.agent, #ghPanel, .modal-card {
+    background: linear-gradient(180deg, rgba(30,35,48,.86), rgba(19,23,32,.92));
+    border: 1px solid rgba(255,255,255,.07);
+    backdrop-filter: blur(14px) saturate(130%);
+    box-shadow: 0 18px 44px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  section.agent { animation: riseIn .5s cubic-bezier(.2,.7,.2,1) both; }
+  section.agent:nth-child(2) { animation-delay: .04s; }
+  section.agent:nth-child(3) { animation-delay: .08s; }
+  section.agent:nth-child(4) { animation-delay: .12s; }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .stat { position: relative; overflow: hidden; }
+  .stat::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 0%), rgba(124,140,255,.16), transparent 62%);
+    opacity: 0; transition: opacity .3s;
+  }
+  .stat:hover::after { opacity: 1; }
+
+  .skill, .gh-item { position: relative; overflow: hidden; transition: border-color .2s, transform .15s, background .2s; }
+  .skill::before, .gh-item::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+    background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(139,124,255,.16), transparent 64%);
+  }
+  .skill:hover, .gh-item:hover { transform: translateY(-1px); border-color: rgba(139,124,255,.35); }
+  .skill:hover::before, .gh-item:hover::before { opacity: 1; }
+
+  .slider { box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  .switch input:checked + .slider { box-shadow: 0 0 0 1px rgba(53,212,146,.5), 0 0 18px -2px rgba(53,212,146,.55); }
+
+  ::selection { background: rgba(91,140,255,.35); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2b3242; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #39415a; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  #toast { transition: opacity .25s, transform .25s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aurora i, header.top h1, .btn.primary::after, section.agent { animation: none !important; }
+    .skill:hover, .gh-item:hover, .btn:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="top">
+    <img class="logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' shape-rendering='geometricPrecision'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b8cff'/%3E%3Cstop offset='1' stop-color='%238b5bff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Cpath d='M18.8 2.9 L7.9 18.5 h6.5 l-1.5 10.6 L24.3 13.1 h-6.6 z' fill='%23ffffff'/%3E%3C/svg%3E" alt="logo">
+    <h1>技能开关 Skill Switch</h1>
+    <span class="badge" id="verBadge" title="程序版本"></span>
+    <button class="btn" id="refreshBtn">刷新</button>
+    <button class="btn" id="settingsBtn">设置</button>
+    <button class="btn danger" id="exitBtn">退出</button>
+  </header>
+  <main>
+    <div class="summary" id="summary"></div>
+    <div id="agents"></div>
+    <h2 class="sec-title">MCP / 插件 / 扩展</h2>
+    <div id="integrations"></div>
+  </main>
+
+  <div id="ghPanel">
+    <div class="gh-head">
+      <span class="title">🔥 GitHub 技能</span>
+      <button class="mini-btn" id="ghWideBtn" title="放大/还原面板">放大</button>
+      <button class="mini-btn" id="ghCollapseBtn">收起</button>
+    </div>
+    <div class="gh-search">
+      <input type="text" id="ghSearchInput" placeholder="搜索 GitHub 技能仓库，回车或点搜索">
+      <button class="mini-btn" id="ghSearchBtn">搜索</button>
+    </div>
+    <div class="tabs" id="ghTabs">
+      <div class="tab" data-tab="ranking">热门排名</div>
+      <div class="tab active" data-tab="must">必装推荐</div>
+    </div>
+    <div class="gh-body" id="ghBody"></div>
+  </div>
+
+  <div class="modal" id="settingsModal" hidden>
+    <div class="modal-card">
+      <h2>智能体与技能目录设置</h2>
+      <p class="hint">每个智能体对应一个或多个「技能目录」。技能 = 一个包含 SKILL.md 文件的文件夹。<br>
+      切换开关时，会把该文件夹内的 <code>SKILL.md</code> 重命名为 <code>SKILL.md.disabled</code>（关闭）或改回（开启），不会删除任何文件。</p>
+      <div id="agentList"></div>
+      <button class="btn" id="addAgentBtn">+ 添加智能体</button>
+      <h3>项目目录（扫描项目级技能）</h3>
+      <p class="hint">在这里填入你的项目文件夹，软件会自动扫描其中的项目级技能目录（如 <code>.claude/skills</code>、<code>.workbuddy/skills</code>、<code>.codebuddy/skills</code>）。</p>
+      <div id="projectList"></div>
+      <button class="btn" id="addProjectBtn">+ 添加项目目录</button>
+      <h3>GitHub 代理（可选）</h3>
+      <p class="hint">如果搜索/部署连不上 GitHub，在这里填写你的代理地址（如 http://127.0.0.1:7890），留空则自动检测系统代理。</p>
+      <div class="project-row"><input type="text" id="ghProxyInput" placeholder="http://127.0.0.1:7890"></div>
+      <div class="modal-actions">
+        <button class="btn" id="resetBtn">恢复默认</button>
+        <span class="flex1"></span>
+        <button class="btn" id="cancelBtn">取消</button>
+        <button class="btn primary" id="saveBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="previewModal" hidden>
+    <div class="modal-card">
+      <h2 id="previewTitle">安装预览</h2>
+      <p class="hint" id="previewHint"></p>
+      <div id="previewList" class="preview-list"></div>
+      <div class="modal-actions">
+        <span class="flex1"></span>
+        <button class="btn" id="previewCancel">取消</button>
+        <button class="btn primary" id="previewConfirm">确认安装</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="mcpModal" hidden>
+    <div class="modal-card">
+      <h2>从 GitHub 安装 MCP（写入 Codex 配置）</h2>
+      <p class="hint" id="mcpHint"></p>
+      <div class="dir-row">
+        <input type="text" id="mcpRepo" placeholder="owner/repo 或 https://github.com/owner/repo">
+        <button class="btn" id="mcpDetect">识别</button>
+      </div>
+      <h3>写入内容（请核对）</h3>
+      <div class="dir-row"><input type="text" id="mcpName" placeholder="MCP 名称，如 my-server"></div>
+      <div class="dir-row"><input type="text" id="mcpCommand" placeholder="命令，如 npx / uvx / node"></div>
+      <div class="dir-row"><input type="text" id="mcpArgs" placeholder="参数，空格分隔，如 -y @scope/pkg"></div>
+      <div class="modal-actions">
+        <span class="flex1"></span>
+        <button class="btn" id="mcpCancel">取消</button>
+        <button class="btn primary" id="mcpDoInstall">确认写入</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<div id="tip"></div>
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let toastTimer = null;
+function toast(msg, ok = true) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = ok ? 'ok' : 'err';
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3200);
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  const headers = Object.assign({}, opts.headers || {});
+  if (window.__SS_TOKEN__) headers['X-SS-Token'] = window.__SS_TOKEN__;
+  const res = await fetch(path, Object.assign({}, opts, { headers }));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+let currentData = { agents: [] };
+
+function summarize(agents) {
+  let total = 0, enabled = 0, disabled = 0;
+  for (const a of agents) {
+    for (const d of (a.skillDirs || [])) {
+      for (const s of (d.skills || [])) {
+        if (s.enabled === null) continue;
+        total++;
+        if (s.enabled) enabled++; else disabled++;
+      }
+    }
+  }
+  return { total, enabled, disabled };
+}
+
+function basename(p) {
+  const parts = String(p).replace(/[\\/]+$/, '').split(/[\\/]/);
+  return parts[parts.length - 1] || p;
+}
+
+function dirLabel(d) {
+  if (d.kind === 'project') return '📂 ' + esc(basename(d.project)) + ' / ' + esc(d.rel);
+  return '🏠 ' + esc(d.resolved);
+}
+
+function render() {
+  const { total, enabled, disabled } = summarize(currentData.agents);
+  $('#summary').innerHTML = '<div class="stat"><div class="num">' + total + '</div><div class="label">技能总数</div></div>'
+    + '<div class="stat"><div class="num on">' + enabled + '</div><div class="label">已启用</div></div>'
+    + '<div class="stat"><div class="num">' + disabled + '</div><div class="label">已禁用</div></div>'
+    + '<div class="stat"><div class="num">' + currentData.agents.length + '</div><div class="label">智能体</div></div>';
+
+  const wrap = $('#agents');
+  if (!currentData.agents.length) {
+    wrap.innerHTML = '<div class="empty">还没有配置任何智能体，请点击右上角「设置」添加。</div>';
+    return;
+  }
+  let html = '';
+  for (const a of currentData.agents) {
+    let agentTotal = 0;
+    for (const d of (a.skillDirs || [])) for (const s of (d.skills || [])) if (s.enabled !== null) agentTotal++;
+    html += '<section class="agent"><header><h2>' + esc(a.name) + '</h2><span class="badge">' + esc(a.id) + '</span>';
+    html += '<span class="badge">' + agentTotal + ' 个技能</span><span class="flex1"></span>';
+    html += '<button class="mini-btn on batch" data-agent="' + esc(a.id) + '" data-enable="1">全部启用</button>';
+    html += '<button class="mini-btn off batch" data-agent="' + esc(a.id) + '" data-enable="0">全部禁用</button>';
+    html += '</header>';
+    for (const d of (a.skillDirs || [])) {
+      html += '<div class="dir"><div class="dir-head">';
+      html += '<code>' + dirLabel(d) + '</code>';
+      if (d.kind === 'project') html += '<span class="badge">项目级</span>';
+      if (!d.exists) html += '<span class="warn">目录不存在</span>';
+      if (d.error && d.exists) html += '<span class="warn">' + esc(d.error) + '</span>';
+      html += '<span class="badge">' + (d.skills || []).length + ' 个技能</span></div>';
+      const skills = d.skills || [];
+      if (!skills.length) {
+        html += d.exists
+          ? '<div class="empty">该目录下没有检测到技能（技能需为包含 SKILL.md 的文件夹）。</div>'
+          : '<div class="empty">' + (d.error ? '⚠ ' + esc(d.error) : '目录不存在') + '，可在「设置」中修改。</div>';
+      } else {
+        html += '<div class="skills">';
+        for (const s of skills) {
+          const cls = s.enabled === true ? 'on' : (s.enabled === false ? 'off' : 'unknown');
+          const txt = s.enabled === true ? '已启用' : (s.enabled === false ? '已禁用' : '无法读取');
+          html += '<div class="skill' + (s.enabled === null ? ' broken' : '') + '" data-title="' + esc(s.title || s.name) + '" data-desc="' + esc(s.description || '') + '">';
+          html += '<label class="switch"><input type="checkbox" data-dir="' + esc(d.resolved) + '" data-skill="' + esc(s.name) + '"'
+            + (s.enabled === true ? ' checked' : '') + (s.enabled === null ? ' disabled' : '') + '><span class="slider"></span></label>';
+          html += '<div class="meta"><div class="name">' + esc(s.title || s.name) + '</div>';
+          html += '<div class="folder">📁 ' + esc(s.name) + '</div>';
+          
+          if (s.error) html += '<div class="err">⚠ ' + esc(s.error) + '</div>';
+          html += '</div><span class="state ' + cls + '">' + txt + '</span>'
+            + '<button class="mini-btn danger skill-del" data-dir="' + esc(d.resolved) + '" data-skill="' + esc(s.name) + '">删除</button></div>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</section>';
+  }
+  wrap.innerHTML = html;
+}
+
+async function refresh() {
+  try {
+    currentData = await api('/api/skills');
+    render();
+  } catch (e) {
+    toast('刷新失败: ' + e.message, false);
+  }
+  loadIntegrations();
+}
+
+/* ---------- MCP / 插件（只读展示，第一步先「看得见」） ---------- */
+let integData = null;
+
+async function loadIntegrations() {
+  try {
+    integData = await api('/api/integrations');
+  } catch (e) {
+    integData = { ok: false, error: String(e.message || e), tools: [] };
+  }
+  renderIntegrations();
+}
+
+function badge(on) {
+  return '<span class="state ' + (on ? 'on' : 'off') + '">' + (on ? '已启用' : '已禁用') + '</span>';
+}
+
+function renderIntegrations() {
+  const box = $('#integrations');
+  if (!box) return;
+  if (!integData) { box.innerHTML = '<div class="empty">正在读取 MCP / 插件配置…</div>'; return; }
+  if (integData.ok === false) { box.innerHTML = '<div class="empty">⚠ ' + esc(integData.error) + '</div>'; return; }
+
+  let html = '';
+  for (const t of (integData.tools || [])) {
+    if (!t.exists) continue;
+    const items = [];
+    for (const m of (t.mcp || [])) {
+      const isCodex = t.kind === 'codex';
+      const tip = (m.desc || 'MCP 服务') + (m.command ? '\n启动：' + m.command : '') + '\n配置文件：' + (t.configFile || t.dir);
+      items.push('<div class="skill" data-tip-title="' + esc(m.name) + '" data-tip-desc="' + esc(tip) + '">'
+        + (isCodex
+            ? '<label class="switch"><input type="checkbox" class="mcp-toggle" data-name="' + esc(m.name) + '"'
+              + (m.enabled !== false ? ' checked' : '') + '><span class="slider"></span></label>'
+            : '')
+        + '<div class="meta"><div class="name">' + esc(m.name) + '</div>'
+        + '<div class="folder">' + esc(m.desc || 'MCP 服务') + '</div></div>'
+        + (isCodex
+            ? '<span class="state ' + (m.enabled !== false ? 'on' : 'off') + '">' + (m.enabled !== false ? '已启用' : '已禁用') + '</span>'
+              + '<button class="mini-btn danger mcp-remove" data-name="' + esc(m.name) + '">移除</button>'
+            : badge(m.enabled !== false))
+        + '</div>');
+    }
+    const markets = (t.marketplaces || []).map(x => x.name);
+    for (const p of (t.plugins || [])) {
+      const isCodex = t.kind === 'codex';
+      const tip = (p.desc || '插件') + '\n来源：' + (String(p.name).split('@')[1] || '未知市场') + '\n配置文件：' + (t.configFile || t.dir);
+      items.push('<div class="skill" data-tip-title="' + esc(p.name) + '" data-tip-desc="' + esc(tip) + '">'
+        + (isCodex
+            ? '<label class="switch"><input type="checkbox" class="plugin-toggle" data-name="' + esc(p.name) + '"'
+              + (p.enabled !== false ? ' checked' : '') + '><span class="slider"></span></label>'
+            : '')
+        + '<div class="meta"><div class="name">' + esc(p.name) + '</div>'
+        + '<div class="folder">' + esc(p.desc || '插件') + '</div></div>'
+        + (isCodex
+            ? '<span class="state ' + (p.enabled !== false ? 'on' : 'off') + '">' + (p.enabled !== false ? '已启用' : '已禁用') + '</span>'
+              + '<button class="mini-btn danger plugin-remove" data-name="' + esc(p.name) + '">移除</button>'
+            : badge(p.enabled !== false))
+        + '</div>');
+    }
+    for (const b of (t.bundles || [])) {
+      items.push('<div class="skill" data-tip-title="' + esc(b.name) + '" data-tip-desc="' + esc(b.desc || '') + '">'
+        + '<div class="meta"><div class="name">' + esc(b.name) + '</div>'
+        + '<div class="folder">' + esc(b.desc || 'DSH bundle') + '</div></div>' + badge(true) + '</div>');
+    }
+    for (const p of (t.patches || [])) {
+      items.push('<div class="skill" data-tip-title="' + esc(p.name || p.id) + '" data-tip-desc="' + esc((p.desc || '') + '\n补丁 id：' + p.id + '\n配置文件：' + (t.configFile || t.dir)) + '">'
+        + '<div class="meta"><div class="name">' + esc(p.name || p.id) + '</div>'
+        + '<div class="folder">' + esc(p.desc || 'DSH 配置补丁') + ' · id=' + esc(p.id) + '</div></div>' + badge(true) + '</div>');
+    }
+    for (const s of (t.subagents || [])) {
+      items.push('<div class="skill" data-tip-title="' + esc(s) + '" data-tip-desc="' + esc('子代理定义：' + s + '.md\n目录：' + t.dir + '\\agents') + '">'
+        + '<div class="meta"><div class="name">' + esc(s) + '</div>'
+        + '<div class="folder">子代理</div></div>' + badge(true) + '</div>');
+    }
+    for (const c of (t.commands || [])) {
+      items.push('<div class="skill" data-tip-title="/' + esc(c) + '" data-tip-desc="' + esc('斜杠命令：/' + c + '\n目录：' + t.dir + '\\commands') + '">'
+        + '<div class="meta"><div class="name">' + esc(c) + '</div>'
+        + '<div class="folder">斜杠命令</div></div>' + badge(true) + '</div>');
+    }
+    if (!items.length) continue;
+    html += '<section class="agent"><header><h2>' + esc(t.tool) + '</h2>'
+      + '<span class="badge">' + items.length + ' 项</span><span class="flex1"></span></header>'
+      + '<div class="dir"><div class="dir-head"><code>' + esc(t.configFile || t.dir) + '</code></div>'
+      + '<div class="skills">' + items.join('') + '</div></div></section>';
+  }
+  if (!html) html = '<div class="empty">没有检测到 MCP / 插件配置。</div>';
+  html += '<div class="gh-search-result-head">只读展示。下面可以「从 GitHub 安装 MCP」——改配置前会自动备份，装完可一键回滚。插件安装还没做。</div>';
+  html += '<button class="btn" id="mcpInstallBtn">+ 从 GitHub 安装 MCP（Codex）</button>'
+    + ' <button class="btn" id="pluginInstallBtn">+ 声明插件（Codex）</button>';
+  if ((integData.backups || []).length) {
+    html += '<div class="gh-search-result-head">最近的配置备份（可回滚）：</div>';
+    html += '<div class="skills">' + integData.backups.slice(0, 5).map(b =>
+      '<div class="skill"><div class="meta"><div class="name">' + esc(b) + '</div>'
+      + '<div class="folder">' + (b.indexOf('config.toml') === 0 ? 'Codex config.toml' : '') + '</div></div>'
+      + '<button class="mini-btn danger mcp-rollback" data-backup="' + esc(b) + '">回滚</button></div>').join('') + '</div>';
+  }
+  box.innerHTML = html;
+  const ib = $('#mcpInstallBtn');
+  if (ib) ib.onclick = openMcpInstall;
+  const pb = $('#pluginInstallBtn');
+  if (pb) pb.onclick = () => {
+    const markets = [];
+    for (const t of (integData.tools || [])) for (const mk of (t.marketplaces || [])) markets.push(mk.name);
+    const name = prompt('要声明哪个插件？写成 名字@市场\n\n配置里已声明的市场：' + (markets.join(', ') || '（无）')
+      + '\n\n注意：本工具只负责往配置里写声明，不负责下载插件本体。');
+    if (!name) return;
+    api('/api/integrations/install-plugin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'codex', name: name.trim() })
+    }).then(r => { toast('已声明 ' + r.name + '（备份 ' + r.backup + '）'); loadIntegrations(); })
+      .catch(e => toast('失败: ' + e.message, false));
+  };
+  $$('#integrations .plugin-toggle').forEach(cb => {
+    cb.onchange = async () => {
+      cb.disabled = true;
+      try {
+        const r = await api('/api/integrations/toggle-plugin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'codex', name: cb.dataset.name, enabled: cb.checked })
+        });
+        toast(r.changed ? (cb.checked ? '已启用 ' : '已禁用 ') + cb.dataset.name + '　' + r.changed : cb.dataset.name + ' 已经是这个状态了');
+        loadIntegrations();
+      } catch (e) { cb.checked = !cb.checked; cb.disabled = false; toast('切换失败: ' + e.message, false); }
+    };
+  });
+  $$('#integrations .plugin-remove').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('从 Codex 配置里移除插件声明「' + b.dataset.name + '」？\n\n只删配置里的声明，不会动插件本体文件。删除前自动备份。')) return;
+      b.disabled = true;
+      try {
+        const r = await api('/api/integrations/remove-plugin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'codex', name: b.dataset.name })
+        });
+        alert('已移除声明。删掉的内容：\n\n' + r.removed + '\n\n备份：' + r.backup);
+        loadIntegrations();
+      } catch (e) { toast('移除失败: ' + e.message, false); b.disabled = false; }
+    };
+  });
+  $$('#integrations .mcp-rollback').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('用这个备份覆盖回配置？\n' + b.dataset.backup + '\n（回滚前会再备份一次当前文件）')) return;
+      b.disabled = true;
+      try {
+        await api('/api/integrations/rollback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ backup: b.dataset.backup }) });
+        toast('已回滚');
+        loadIntegrations();
+      } catch (e) { toast('回滚失败: ' + e.message, false); b.disabled = false; }
+    };
+  });
+  $$('#integrations .mcp-toggle').forEach(cb => {
+    cb.onchange = async () => {
+      cb.disabled = true;
+      const name = cb.dataset.name;
+      try {
+        const r = await api('/api/integrations/toggle-mcp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'codex', name, enabled: cb.checked })
+        });
+        toast(r.changed
+          ? (cb.checked ? '已启用 ' : '已禁用 ') + name + '　' + r.changed
+          : name + ' 已经是这个状态了');
+        loadIntegrations();
+      } catch (e) {
+        cb.checked = !cb.checked;
+        cb.disabled = false;
+        toast('切换失败: ' + e.message, false);
+      }
+    };
+  });
+  $$('#integrations .mcp-remove').forEach(b => {
+    b.onclick = async () => {
+      const name = b.dataset.name;
+      if (!confirm('从 Codex 配置里移除 MCP「' + name + '」？\n\n会删掉 [mcp_servers.' + name + '] 整段（含它的子段），其他内容不动。\n删除前会自动备份。')) return;
+      b.disabled = true;
+      try {
+        const r = await api('/api/integrations/remove-mcp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'codex', name })
+        });
+        alert('已移除。删掉的内容是：\n\n' + r.removed + '\n\n备份：' + r.backup + '\n（可在下方备份列表里一键回滚）');
+        loadIntegrations();
+      } catch (e) { toast('移除失败: ' + e.message, false); b.disabled = false; }
+    };
+  });
+}
+
+/* ---------- 安装 MCP ---------- */
+let mcpPreview = null;
+
+function openMcpInstall() {
+  mcpPreview = null;
+  $('#mcpRepo').value = '';
+  $('#mcpName').value = '';
+  $('#mcpCommand').value = '';
+  $('#mcpArgs').value = '';
+  $('#mcpHint').textContent = '粘贴一个 GitHub MCP 仓库地址（owner/repo 或完整链接），点「识别」';
+  $('#mcpDoInstall').disabled = true;
+  $('#mcpModal').hidden = false;
+}
+
+async function mcpDetect() {
+  const repo = $('#mcpRepo').value.trim();
+  if (!repo) { $('#mcpHint').textContent = '先填仓库地址'; return; }
+  $('#mcpHint').textContent = '正在读取仓库…';
+  $('#mcpDoInstall').disabled = true;
+  try {
+    const r = await api('/api/integrations/preview-mcp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repo })
+    });
+    mcpPreview = r;
+    $('#mcpName').value = r.suggestedName || '';
+    if (r.candidates && r.candidates.length) {
+      const c = r.candidates[0];
+      $('#mcpCommand').value = c.command;
+      $('#mcpArgs').value = c.args.join(' ');
+      let hint = '识别到 ' + r.candidates.length + ' 个候选命令，已填入第一个（来源：' + c.label + '）。**请自己核对**，不对就手改。';
+      if (r.packageName) hint += ' 包名：' + r.packageName;
+      $('#mcpHint').textContent = hint;
+    } else {
+      $('#mcpHint').textContent = (r.readmeError ? '⚠ ' + r.readmeError + '。' : '')
+        + '没能从 README 认出启动命令，请按仓库说明手动填写 command 和 args。';
+    }
+    $('#mcpDoInstall').disabled = !($('#mcpName').value && $('#mcpCommand').value);
+  } catch (e) {
+    $('#mcpHint').textContent = '⚠ ' + e.message;
+  }
+}
+
+async function mcpInstall() {
+  const name = $('#mcpName').value.trim();
+  const command = $('#mcpCommand').value.trim();
+  const args = $('#mcpArgs').value.trim() ? $('#mcpArgs').value.trim().split(/\s+/) : [];
+  if (!confirm('要往 Codex 配置里写入：\n\n[mcp_servers.' + name + ']\ncommand = "' + command + '"\nargs = [' + args.map(a => '"' + a + '"').join(', ') + ']\n\n写入前会自动备份原文件。继续？')) return;
+  $('#mcpDoInstall').disabled = true;
+  try {
+    const r = await api('/api/integrations/install-mcp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'codex', name, command, args })
+    });
+    toast('已写入，备份: ' + r.backup);
+    $('#mcpModal').hidden = true;
+    loadIntegrations();
+  } catch (e) {
+    toast('安装失败: ' + e.message, false);
+    $('#mcpDoInstall').disabled = false;
+  }
+}
+
+async function onToggle(checkbox) {
+  const dir = checkbox.dataset.dir;
+  const skill = checkbox.dataset.skill;
+  const enable = checkbox.checked;
+  checkbox.disabled = true;
+  try {
+    const r = await api('/api/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir, skill, enable })
+    });
+    toast(r.message || (enable ? '已启用' : '已禁用'), true);
+    await refresh();
+  } catch (e) {
+    toast('操作失败: ' + e.message, false);
+    checkbox.checked = !enable;
+    checkbox.disabled = false;
+  }
+}
+
+async function onBatch(btn) {
+  const agentId = btn.dataset.agent;
+  const enable = btn.dataset.enable === '1';
+  btn.disabled = true;
+  try {
+    const r = await api('/api/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId, enable })
+    });
+    let msg = (enable ? '已批量启用 ' : '已批量禁用 ') + r.changed + ' 个技能';
+    if (r.errors && r.errors.length) msg += '（' + r.errors.length + ' 个失败）';
+    toast(msg, r.ok);
+    await refresh();
+  } catch (e) {
+    toast('批量操作失败: ' + e.message, false);
+    btn.disabled = false;
+  }
+}
+
+async function deleteSkillUI(dir, skill) {
+  if (!confirm('确定删除技能「' + skill + '」吗？\n会移到回收站；回收站不可用时将直接删除。')) return;
+  try {
+    const r = await api('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir, skill }) });
+    toast((r.recycled ? '已移到回收站: ' : '已删除: ') + skill);
+    await refresh();
+  } catch (e) { toast('删除失败: ' + e.message, false); }
+}
+
+/* ---------- GitHub 推荐面板 ---------- */
+const BUILTIN_MUST = [
+  { name: 'anthropics/skills', full_name: 'anthropics/skills', stars: null, description: 'Anthropic 官方 Agent Skills 库（文档处理、数据分析等）', url: 'https://github.com/anthropics/skills', must: true },
+  { name: 'superpowers', full_name: 'obra/superpowers', stars: null, description: 'Claude Code 超级工作流技能包（TDD / 重构 / 规划）', url: 'https://github.com/obra/superpowers', must: true },
+  { name: 'awesome-claude-skills', full_name: 'ComposioHQ/awesome-claude-skills', stars: null, description: '最大的 Claude Skills 精选合集（分类导航）', url: 'https://github.com/ComposioHQ/awesome-claude-skills', must: true },
+  { name: 'superpowers-skills', full_name: 'obra/superpowers-skills', stars: null, description: '社区可编辑的 superpowers 技能库', url: 'https://github.com/obra/superpowers-skills', must: true }
+];
+let ghData = { enabled: true, ranking: [], must: BUILTIN_MUST, error: null };
+let ghTab = 'must';
+let ghLoading = false;
+let searchItems = [];
+let searchError = null;
+let searchLoading = false;
+let lastSearchQuery = '';
+let searchTotal = 0;
+let searchRelaxed = false;
+
+function starsText(s) {
+  if (s == null) return '';
+  return s >= 1000 ? (s / 1000).toFixed(1) + 'k' : String(s);
+}
+
+function updateGhTabs() {
+  $$('#ghTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === ghTab));
+}
+
+function bindGhCopy() {
+  $$('#ghBody .gh-copy').forEach(b => b.onclick = () => copyClone(b.dataset.url));
+}
+
+function bindGhInstall() {
+  $$('#ghBody .gh-install').forEach(b => b.onclick = () => {
+    const item = b.closest('.gh-item');
+    const sel = item ? item.querySelector('.deploy-sel') : null;
+    openPreview(b.dataset.repo, sel ? sel.value : null, b);
+  });
+  $$('#ghBody .gh-uninstall').forEach(b => b.onclick = () => uninstallRepo(b.dataset.repo, b));
+}
+
+/* ---------- 安装预览 ---------- */
+let pendingInstall = null;
+async function openPreview(repo, agentId, btn) {
+  pendingInstall = { repo, agentId, btn };
+  const list = $('#previewList');
+  list.innerHTML = '';
+  $('#previewTitle').textContent = '安装预览 · ' + repo;
+  $('#previewHint').textContent = '正在读取仓库结构…';
+  $('#previewConfirm').disabled = true;
+  $('#previewModal').hidden = false;
+  try {
+    const r = await api('/api/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo })
+    });
+    if (!r.ok) { $('#previewHint').textContent = '⚠ ' + r.error; return; }
+    $('#previewHint').textContent = '将安装 ' + r.skills.length + ' 个技能到所选智能体的技能目录：';
+    for (const s of r.skills) {
+      const row = document.createElement('div');
+      row.className = 'preview-item';
+      const n = document.createElement('span'); n.className = 'pname'; n.textContent = s.name;
+      const d = document.createElement('span'); d.className = 'pdir'; d.textContent = s.dir;
+      row.appendChild(n); row.appendChild(d);
+      list.appendChild(row);
+    }
+    $('#previewConfirm').disabled = false;
+  } catch (e) {
+    $('#previewHint').textContent = '⚠ ' + e.message;
+  }
+}
+
+function renderGhList(list, showRank) {
+  let html = '';
+  list.forEach((it, i) => {
+    const star = it.stars != null ? '⭐ ' + starsText(it.stars) : '';
+    const mustBadge = it.must ? '<span class="must-badge">必装</span>' : '';
+    const rank = showRank ? '<span class="rank">' + (i + 1) + '</span>' : '<span class="rank">🔥</span>';
+    html += '<div class="gh-item" data-tip-title="' + esc(it.name) + '" data-tip-desc="' + esc(it.description || '') + '"><div class="top">' + rank
+      + '<a class="name" href="' + esc(it.url || '#') + '" target="_blank" rel="noopener">' + esc(it.name) + '</a>'
+      + mustBadge + '<span class="stars">' + star + '</span></div>';
+    
+    html += '<div class="gh-install-row"><select class="deploy-sel">' + agentOptions() + '</select>'
+      + '<button class="mini-btn gh-install" data-repo="' + esc(it.full_name || '') + '">' + (it.installed ? '一键添加（已装）' : '一键添加') + '</button>'
+      + (it.installed ? '<button class="mini-btn danger gh-uninstall" data-repo="' + esc(it.full_name || '') + '">卸载</button>' : '')
+      + '</div>';
+    if (it.installed) html += '<div class="gh-installed">已添加此skill，请勿重复添加（装到其它智能体可直接点）</div>';
+    html += '</div>';
+  });
+  if (!html) html = '<div class="gh-empty">暂无数据。</div>';
+  return html;
+}
+
+function renderGh() {
+  const body = $('#ghBody');
+  updateGhTabs();
+  if (ghData && ghData.enabled === false) { body.innerHTML = '<div class="gh-empty">GitHub 推荐已关闭，可在 config.json 中开启。</div>'; return; }
+  if (ghTab === 'search') {
+    let html = '';
+    if (lastSearchQuery) {
+      const count = searchLoading ? '搜索中…' : '共 ' + (searchTotal || searchItems.length) + ' 个仓库';
+      html += '<div class="gh-search-result-head">搜索结果：<b>' + esc(lastSearchQuery) + '</b> · ' + count
+        + (searchRelaxed ? '<br>原关键词没有精确匹配，已自动放宽为「任意关键词」' : '')
+        + '<br>按仓库名 / 简介 / README 匹配；点上方「热门排名 / 必装推荐」可返回</div>';
+    }
+    if (searchLoading) {
+      html += '<div class="gh-empty">正在搜索 GitHub…</div>';
+    } else if (searchError) {
+      html += '<div class="gh-empty">⚠ ' + esc(searchError) + '</div><button class="mini-btn" id="ghRetrySearch">重试</button>';
+    } else if (!searchItems.length) {
+      if (lastSearchQuery) {
+        const ghUrl = 'https://github.com/search?q=' + encodeURIComponent(lastSearchQuery) + '&type=repositories';
+        html += '<div class="gh-empty">没搜到包含「' + esc(lastSearchQuery) + '」的仓库。<br>'
+          + '建议：换更短的词（例如只搜 <code>dsh</code>），或用 GitHub 限定符 <code>in:name</code>、<code>topic:agent-skills</code>。<br>'
+          + '<a class="gh-link" href="' + ghUrl + '" target="_blank" rel="noopener">在 GitHub 网页上搜索这个词 →</a></div>';
+      } else {
+        html += '<div class="gh-empty">在上方输入关键词搜索 GitHub 技能仓库（如 dsh、pdf、excel…）。<br>提示：多个词按「同时包含」匹配，搜不到时会自动放宽。</div>';
+      }
+    } else {
+      searchItems.forEach((it, i) => {
+        html += '<div class="gh-item"><div class="top"><span class="rank">' + (i + 1) + '</span>'
+          + '<a class="name" href="' + esc(it.url || '#') + '" target="_blank" rel="noopener">' + esc(it.name) + '</a>'
+          + '<span class="stars">⭐ ' + starsText(it.stars) + '</span></div>';
+        if (it.full_name) html += '<div class="gh-repo">' + esc(it.full_name) + '</div>';
+        html += '<div class="gh-install-row"><select class="deploy-sel">' + agentOptions() + '</select>'
+          + '<button class="mini-btn gh-install" data-repo="' + esc(it.full_name) + '">' + (it.installed ? '一键添加（已装）' : '一键添加') + '</button></div>';
+        if (it.installed) html += '<div class="gh-installed">已添加此skill，请勿重复添加（装到其它智能体可直接点）</div>';
+        if (it.description) html += '<div class="desc">' + esc(it.description) + '</div>';
+        html += '</div>';
+      });
+    }
+    body.innerHTML = html;
+    bindGhCopy();
+    bindGhInstall();
+    const rs = $('#ghRetrySearch'); if (rs) rs.onclick = doSearch;
+    return;
+  }
+  if (ghTab === 'must') {
+    body.innerHTML = renderGhList((ghData && ghData.must && ghData.must.length) ? ghData.must : BUILTIN_MUST, false);
+    bindGhCopy();
+    bindGhInstall();
+    return;
+  }
+  if (ghLoading && !(ghData && ghData.ranking && ghData.ranking.length)) {
+    body.innerHTML = '<div class="gh-empty">正在加载热门排名…</div>';
+    return;
+  }
+  const list = (ghData && ghData.ranking) || [];
+  if (!list.length) {
+    body.innerHTML = '<div class="gh-empty">⚠ 网络不可用，暂时无法加载 GitHub 排名。可先看「必装推荐」，或点「重试」。</div>'
+      + '<button class="mini-btn" id="ghRetry">重试</button>';
+    const r = $('#ghRetry'); if (r) r.onclick = loadRecommend;
+    return;
+  }
+  body.innerHTML = renderGhList(list, true);
+  bindGhCopy();
+  bindGhInstall();
+}
+
+async function loadRecommend() {
+  ghLoading = true; renderGh();
+  try {
+    const d = await api('/api/recommend');
+    if (d && d.must && d.must.length) d.must.forEach(m => { m.must = true; });
+    ghData = d;
+  } catch (e) {
+    ghData = { enabled: true, ranking: [], must: BUILTIN_MUST, error: String(e.message || e) };
+  }
+  ghLoading = false; renderGh();
+}
+
+async function refreshGitHub() {
+  if (ghTab === 'search' && lastSearchQuery) {
+    try {
+      const d = await api('/api/search?q=' + encodeURIComponent(lastSearchQuery));
+      searchItems = d.items || [];
+      searchError = d.error || null;
+      renderGh();
+    } catch (e) {}
+  } else {
+    await loadRecommend();
+  }
+}
+
+async function copyClone(url) {
+  if (!url) return;
+  const cmd = 'git clone ' + url;
+  try { await navigator.clipboard.writeText(cmd); toast('已复制: ' + cmd); }
+  catch (e) { toast('复制失败，请手动复制', false); }
+}
+/* ---------- 技能悬浮提示 ---------- */
+function initTip() {
+  const tip = $('#tip');
+  function moveTip(ev) {
+    const pad = 14;
+    let x = ev.clientX + pad, y = ev.clientY + pad;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    if (x + w > window.innerWidth - 8) x = ev.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = ev.clientY - h - pad;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+  function showFor(el, ev) {
+    const title = el.dataset.tipTitle || el.dataset.title || '';
+    const desc = el.dataset.tipDesc || el.dataset.desc || '';
+    if (!title && !desc) return;
+    tip.innerHTML = '<div class="t-title">' + esc(title) + '</div>'
+      + '<div class="t-desc">' + (desc ? esc(desc) : '暂无简介') + '</div>';
+    tip.style.display = 'block';
+    moveTip(ev);
+  }
+  ['#agents', '#ghBody', '#integrations'].forEach((sel) => {
+    const wrap = $(sel);
+    if (!wrap) return;
+    wrap.addEventListener('mouseover', (ev) => {
+      const el = ev.target.closest('.skill, .gh-item');
+      if (el) showFor(el, ev);
+    });
+    wrap.addEventListener('mousemove', (ev) => {
+      const el = ev.target.closest('.skill, .gh-item');
+      if (el && tip.style.display === 'block') moveTip(ev);
+    });
+    wrap.addEventListener('mouseout', (ev) => {
+      const el = ev.target.closest('.skill, .gh-item');
+      if (el) tip.style.display = 'none';
+    });
+  });
+}
+function agentOptions() {
+  return currentData.agents.map(a => '<option value="' + esc(a.id) + '">' + esc(a.name) + '</option>').join('');
+}
+
+async function doSearch() {
+  const q = $('#ghSearchInput').value.trim();
+  if (!q) { toast('请输入关键词', false); return; }
+  lastSearchQuery = q;
+  searchLoading = true; searchItems = []; searchError = null; searchTotal = 0; searchRelaxed = false;
+  ghTab = 'search'; renderGh();
+  try {
+    const d = await api('/api/search?q=' + encodeURIComponent(q));
+    searchItems = d.items || [];
+    searchTotal = d.total || searchItems.length;
+    searchRelaxed = !!d.relaxed;
+    searchError = d.error || null;
+  } catch (e) {
+    searchError = String(e.message || e);
+  }
+  searchLoading = false; renderGh();
+}
+
+function agentMismatch(repo, agentId) {
+  const r = String(repo || '').toLowerCase();
+  let seems = null;
+  if (/claude|anthropic/.test(r)) seems = 'claude';
+  else if (/workbuddy|codebuddy/.test(r)) seems = 'workbuddy';
+  else if (/codex|openai/.test(r)) seems = 'codex';
+  if (!seems) return null;
+  const cur = String(agentId || '').toLowerCase();
+  if (cur.indexOf(seems) >= 0) return null;
+  return { claude: 'Claude Code', codex: 'Codex', workbuddy: 'Work Buddy' }[seems] || seems;
+}
+
+async function installRepo(repo, agentId, btn) {
+  if (!agentId) agentId = (currentData.agents[0] && currentData.agents[0].id);
+  if (!agentId) { toast('没有可部署的智能体，请先在「设置」里添加', false); return; }
+  const mismatch = agentMismatch(repo, agentId);
+  if (mismatch) {
+    const cur = currentData.agents.find(a => a.id === agentId);
+    const curName = (cur && cur.name) || agentId;
+    if (!confirm('⚠ 提醒：这个技能看起来是给「' + mismatch + '」用的，不属于当前智能体「' + curName + '」。\
+\
+是否仍要把它添加到「' + curName + '」的技能里？')) return;
+  }
+  const oldText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '部署中…'; }
+  const curAgent = currentData.agents.find(a => a.id === agentId);
+  const curAgentName = (curAgent && curAgent.name) || agentId;
+  toast('正在部署到「' + curAgentName + '」…');
+  try {
+    const r = await api('/api/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo, agentId })
+    });
+    if (r.alreadyInstalled) { toast('这个 skill 已经安装过了，未重复安装'); return; }
+    let msg = '已部署 ' + (r.count || 0) + ' 个技能';
+    if (r.installed && r.installed.length) msg += '：' + r.installed.slice(0, 5).join(', ') + (r.installed.length > 5 ? '…' : '');
+    if (r.skipped && r.skipped.length) msg += '（' + r.skipped.length + ' 个已安装过，已跳过，不会重复）';
+    if (r.failed && r.failed.length) msg += '（' + r.failed.length + ' 个复制失败）';
+    if (r.target) msg += ' → ' + r.target;
+    toast(msg);
+    await refresh();
+    await refreshGitHub();
+  } catch (e) {
+    toast('部署失败: ' + e.message + '（请开启代理，或在 config.json 的 github.proxy 里填写代理地址）', false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText; }
+  }
+}
+
+async function uninstallRepo(repo, btn) {
+  if (!repo) return;
+  if (!confirm('确定卸载「' + repo + '」吗？' + '\n会删除安装记录里属于它的全部技能文件夹，不可恢复。')) return;
+  const oldText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '卸载中…'; }
+  try {
+    const r = await api('/api/uninstall', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo })
+    });
+    let msg = '已卸载 ' + ((r.removed || []).length) + ' 个技能' + (r.recycled ? '（已移到回收站）' : '');
+    if (r.skipped && r.skipped.length) msg += '，跳过 ' + r.skipped.length + ' 个';
+    if (r.failed && r.failed.length) msg += '，失败 ' + r.failed.length + ' 个';
+    toast(msg);
+    await refresh();
+    await refreshGitHub();
+  } catch (e) {
+    toast('卸载失败: ' + e.message, false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText; }
+  }
+}
+
+/* ---------- 设置 ---------- */
+let currentConfig = { agents: [], projects: [] };
+let draftAgents = [];
+let draftProjects = [];
+
+function openSettings() {
+  draftAgents = JSON.parse(JSON.stringify(currentConfig.agents || []));
+  draftProjects = JSON.parse(JSON.stringify(currentConfig.projects || []));
+  $('#ghProxyInput').value = (currentConfig.github && currentConfig.github.proxy) || '';
+  renderSettings();
+  $('#settingsModal').hidden = false;
+}
+function closeSettings() { $('#settingsModal').hidden = true; }
+
+function renderSettings() {
+  const wrap = $('#agentList');
+  let html = '';
+  draftAgents.forEach((a, ai) => {
+    html += '<div class="agent-edit" data-index="' + ai + '">';
+    html += '<div class="row"><input type="text" class="agent-name" placeholder="显示名称，如 Codex" value="' + esc(a.name) + '">';
+    html += '<button class="mini-btn danger del-agent" data-index="' + ai + '">删除</button></div>';
+    (a.skillDirs || []).forEach((d, di) => {
+      html += '<div class="dir-row"><input type="text" class="dir-input" data-index="' + ai + '" data-dir="' + di + '" placeholder="技能目录，如 ~/.codex/skills" value="' + esc(d) + '">';
+      html += '<button class="mini-btn pick-dir" data-index="' + ai + '" data-dir="' + di + '">浏览…</button>';
+      html += '<button class="mini-btn danger del-dir" data-index="' + ai + '" data-dir="' + di + '">✕</button></div>';
+    });
+    html += '<button class="mini-btn add-dir" data-index="' + ai + '">+ 添加目录</button>';
+    (a.projectSkillDirs || []).forEach((d, di) => {
+      html += '<div class="dir-row"><input type="text" class="proj-dir-input" data-index="' + ai + '" data-dir="' + di + '" placeholder="项目级相对目录，如 .dsh/skills" value="' + esc(d) + '">';
+      html += '<button class="mini-btn danger del-proj-dir" data-index="' + ai + '" data-dir="' + di + '">✕</button></div>';
+    });
+    html += '<button class="mini-btn add-proj-dir" data-index="' + ai + '">+ 项目级目录</button>';
+    html += '</div>';
+  });
+  wrap.innerHTML = html;
+
+  const plist = $('#projectList');
+  let phtml = '';
+  draftProjects.forEach((p, pi) => {
+    phtml += '<div class="project-row"><input type="text" class="project-input" data-index="' + pi + '" placeholder="项目根目录，如 C:/Users/you/Projects/demo" value="' + esc(p) + '">';
+    phtml += '<button class="mini-btn pick-project" data-index="' + pi + '">浏览…</button>';
+    phtml += '<button class="mini-btn danger del-project" data-index="' + pi + '">✕</button></div>';
+  });
+  plist.innerHTML = phtml;
+}
+
+function readSettings() {
+  const agents = [];
+  $$('.agent-edit').forEach(el => {
+    const idx = parseInt(el.dataset.index, 10);
+    const name = $('.agent-name', el).value.trim();
+    const dirs = $$('.dir-input', el).map(i => i.value.trim()).filter(Boolean);
+    const projDirs = $$('.proj-dir-input', el).map(i => i.value.trim()).filter(Boolean);
+    if (!name && !dirs.length && !projDirs.length) return;
+    agents.push({
+      id: (draftAgents[idx] && draftAgents[idx].id) || ('agent' + (idx + 1)),
+      name: name || (draftAgents[idx] && draftAgents[idx].name) || 'Agent',
+      skillDirs: dirs,
+      projectSkillDirs: projDirs
+    });
+  });
+  const projects = $$('.project-input').map(i => i.value.trim()).filter(Boolean);
+  return { agents, projects };
+}
+
+function bindSettingsEvents() {
+  $('#addAgentBtn').onclick = () => {
+    draftAgents.push({ id: 'agent' + (Date.now() % 100000), name: '新智能体', skillDirs: [] });
+    renderSettings();
+  };
+  $('#addProjectBtn').onclick = () => {
+    draftProjects.push('');
+    renderSettings();
+  };
+  $('#resetBtn').onclick = () => {
+    draftAgents = [
+      { id: 'codex', name: 'Codex', skillDirs: ['~/.codex/skills', '~/.agents/skills'] },
+      { id: 'claude', name: 'Claude Code', skillDirs: ['~/.claude/skills'], projectSkillDirs: ['.claude/skills'] },
+      { id: 'workbuddy', name: 'Work Buddy', skillDirs: ['~/.workbuddy/skills', '~/.codebuddy/skills'], projectSkillDirs: ['.workbuddy/skills', '.codebuddy/skills'] }
+    ];
+    draftProjects = [];
+    renderSettings();
+    toast('已恢复为默认配置，点击「保存」生效');
+  };
+  $('#cancelBtn').onclick = closeSettings;
+  $('#saveBtn').onclick = async () => {
+    const { agents, projects } = readSettings();
+    const proxy = $('#ghProxyInput').value.trim();
+    const github = JSON.parse(JSON.stringify(currentConfig.github || {}));
+    github.proxy = proxy;
+    try {
+      const data = await api('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents, projects, github })
+      });
+      currentConfig = data.config;
+      toast('配置已保存');
+      closeSettings();
+      await refresh();
+    } catch (e) { toast('保存失败: ' + e.message, false); }
+  };
+  $('#agentList').addEventListener('click', async (ev) => {
+    const pickDir = ev.target.closest('.pick-dir');
+    const delAgent = ev.target.closest('.del-agent');
+    const delDir = ev.target.closest('.del-dir');
+    const addDir = ev.target.closest('.add-dir');
+    const addProjDir = ev.target.closest('.add-proj-dir');
+    const delProjDir = ev.target.closest('.del-proj-dir');
+    if (pickDir) {
+      const idx = parseInt(pickDir.dataset.index, 10);
+      const di = parseInt(pickDir.dataset.dir, 10);
+      try {
+        const r = await api('/api/pick-folder', { method: 'POST' });
+        if (r.ok && r.path) {
+          const el = document.querySelector('.dir-input[data-index="' + idx + '"][data-dir="' + di + '"]');
+          if (el) el.value = r.path;
+        } else if (r.error) { toast(r.error, false); }
+      } catch (e) { toast('选择失败: ' + e.message, false); }
+      return;
+    }
+    if (delAgent) {
+      draftAgents.splice(parseInt(delAgent.dataset.index, 10), 1);
+      renderSettings();
+    } else if (delDir) {
+      const idx = parseInt(delDir.dataset.index, 10);
+      draftAgents[idx].skillDirs.splice(parseInt(delDir.dataset.dir, 10), 1);
+      renderSettings();
+    } else if (delProjDir) {
+      const idx = parseInt(delProjDir.dataset.index, 10);
+      draftAgents[idx].projectSkillDirs = draftAgents[idx].projectSkillDirs || [];
+      draftAgents[idx].projectSkillDirs.splice(parseInt(delProjDir.dataset.dir, 10), 1);
+      renderSettings();
+    } else if (addProjDir) {
+      const idx = parseInt(addProjDir.dataset.index, 10);
+      draftAgents[idx].projectSkillDirs = draftAgents[idx].projectSkillDirs || [];
+      draftAgents[idx].projectSkillDirs.push('');
+      renderSettings();
+    } else if (addDir) {
+      const idx = parseInt(addDir.dataset.index, 10);
+      draftAgents[idx].skillDirs = draftAgents[idx].skillDirs || [];
+      draftAgents[idx].skillDirs.push('');
+      renderSettings();
+    }
+  });
+  $('#projectList').addEventListener('click', async (ev) => {
+    const pick = ev.target.closest('.pick-project');
+    if (pick) {
+      const pi = parseInt(pick.dataset.index, 10);
+      try {
+        const r = await api('/api/pick-folder', { method: 'POST' });
+        if (r.ok && r.path) {
+          const el = document.querySelector('.project-input[data-index="' + pi + '"]');
+          if (el) el.value = r.path;
+        } else if (r.error) { toast(r.error, false); }
+      } catch (e) { toast('选择失败: ' + e.message, false); }
+      return;
+    }
+    const del = ev.target.closest('.del-project');
+    if (del) {
+      draftProjects.splice(parseInt(del.dataset.index, 10), 1);
+      renderSettings();
+    }
+  });
+}
+
+async function loadVersion() {
+  try {
+    const v = await api('/api/hello');
+    const b = $('#verBadge');
+    if (b) b.textContent = 'v' + (v.version || '?');
+  } catch (e) {}
+}
+
+async function loadConfig() {
+  try { currentConfig = await api('/api/config'); } catch (e) {}
+}
+
+(async () => {
+  $('#refreshBtn').onclick = refresh;
+  $('#settingsBtn').onclick = openSettings;
+  bindSettingsEvents();
+  $('#agents').addEventListener('change', (ev) => {
+    if (ev.target.matches('input[type=checkbox]')) onToggle(ev.target);
+  });
+  $('#agents').addEventListener('click', (ev) => {
+    const del = ev.target.closest('.skill-del');
+    if (del) { deleteSkillUI(del.dataset.dir, del.dataset.skill); return; }
+    const b = ev.target.closest('.batch');
+    if (b) onBatch(b);
+  });
+  $('#ghTabs').addEventListener('click', (ev) => {
+    const t = ev.target.closest('.tab');
+    if (t) { ghTab = t.dataset.tab; renderGh(); }
+  });
+  $('#ghCollapseBtn').onclick = () => $('#ghPanel').classList.toggle('collapsed');
+  $('#ghWideBtn').onclick = () => $('#ghPanel').classList.toggle('wide');
+  $('#mcpDetect').onclick = mcpDetect;
+  $('#mcpDoInstall').onclick = mcpInstall;
+  $('#mcpCancel').onclick = () => { $('#mcpModal').hidden = true; };
+  $('#mcpRepo').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') mcpDetect(); });
+  initTip();
+  $('#ghSearchBtn').onclick = doSearch;
+  $('#exitBtn').onclick = () => {
+    if (confirm('确定要退出 SkillSwitch 吗？')) {
+      fetch('/api/exit', { method: 'POST' }).catch(() => {});
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b91a7;font-size:15px;background:#0f1117;">✅ 软件已退出，可以关闭本页面。</div>';
+    }
+  };
+  $('#ghSearchInput').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') doSearch(); });
+  $('#previewCancel').onclick = () => { $('#previewModal').hidden = true; };
+  $('#previewConfirm').onclick = async () => {
+    if (!pendingInstall) return;
+    const job = pendingInstall;
+    $('#previewModal').hidden = true;
+    await installRepo(job.repo, job.agentId, job.btn);
+  };
+  loadVersion();
+  await loadConfig();
+  await refresh();
+  loadRecommend();
+  /* 支持用 #q=关键词 直接打开搜索结果（也方便排查“为什么搜不到”） */
+  try {
+    const hm = /(?:^|[#&])q=([^&]+)/.exec(decodeURIComponent(location.hash));
+    if (hm) {
+      $('#ghSearchInput').value = hm[1];
+      doSearch();
+    }
+  } catch (e) {}
+})();
+</script>
+<style>body.settled section.agent { animation: none; }</style>
+<script>
+/* vue-bits 风格：SpotlightCard 光斑跟随鼠标（rAF 节流） */
+(function () {
+  var sel = '.skill, .gh-item, .stat, .agent-edit';
+  var raf = null, last = null;
+  document.addEventListener('pointermove', function (e) {
+    var t = e.target;
+    var el = t && t.closest ? t.closest(sel) : null;
+    if (!el) return;
+    last = { el: el, x: e.clientX, y: e.clientY };
+    if (raf) return;
+    raf = requestAnimationFrame(function () {
+      raf = null;
+      if (!last) return;
+      var r = last.el.getBoundingClientRect();
+      last.el.style.setProperty('--mx', (last.x - r.left) + 'px');
+      last.el.style.setProperty('--my', (last.y - r.top) + 'px');
+    });
+  }, { passive: true });
+
+  /* 首屏入场动画只播一次，避免每次刷新列表都重播 */
+  setTimeout(function () { document.body.classList.add('settled'); }, 1400);
+})();
+</script>
+</body>
+</html>
