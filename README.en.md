@@ -52,7 +52,7 @@ SkillSwitch puts all of that behind one UI and makes config edits **undoable**.
 
 ## Install
 
-Download `SkillSwitch.exe` from [Releases](https://github.com/) and run it. No installer, no dependencies.
+Download `SkillSwitch.exe` from [Releases](../../releases) and run it. No installer, no dependencies.
 
 > The binary is currently unsigned, so Windows SmartScreen may warn about an unknown publisher. The full source is in this repository — audit it or build it yourself.
 

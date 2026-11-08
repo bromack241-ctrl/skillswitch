@@ -7,10 +7,10 @@
   "keywords": ["ai-agent", "skills", "mcp", "codex", "dsh", "claude-code", "windows"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/skillswitch.git"
+    "url": "https://github.com/bromack241-ctrl/skillswitch.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/skillswitch/issues"
+    "url": "https://github.com/bromack241-ctrl/skillswitch/issues"
   },
   "scripts": {
     "dev": "node src/server.js",
